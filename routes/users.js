@@ -30,7 +30,7 @@ const storage = multer.diskStorage({
 
 const uploadOptions = multer({ storage: storage });
 router.get(`/`, async (req, res) => {
- 
+    // const userList = await User.find();
     const userList = await User.find().select('-passwordHash');
     console.log(userList)
 

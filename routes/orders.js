@@ -2,6 +2,8 @@ const { Order } = require('../models/order');
 const express = require('express');
 const { OrderItem } = require('../models/order-item');
 const router = express.Router();
+const { Product } = require('../models/product');
+
 
 router.get(`/`, async (req, res) => {
     const orderList = await Order.find().populate('user', 'name').sort({ 'dateOrdered': -1 });
@@ -30,20 +32,83 @@ router.get(`/:id`, async (req, res) => {
     res.send(order);
 })
 
+// router.post('/', async (req, res) => {
+//     try {
+//         const orderItemsIds = await Promise.all(req.body.orderItems.map(async (orderItem) => {
+//             let newOrderItem = new OrderItem({
+//                 quantity: orderItem.quantity,
+//                 product: orderItem.product
+//             });
+
+//             newOrderItem = await newOrderItem.save();
+
+//             return newOrderItem._id;
+            
+//         }));
+
+//         let order = new Order({
+//             orderItems: orderItemsIds,
+//             shippingAddress1: req.body.shippingAddress1,
+//             shippingAddress2: req.body.shippingAddress2,
+//             city: req.body.city,
+//             zip: req.body.zip,
+//             country: req.body.country,
+//             phone: req.body.phone,
+//             status: req.body.status,
+//             totalPrice: req.body.totalPrice, 
+//             user: req.body.user,
+//         });
+
+//         order = await order.save();
+
+//         if (!order)
+//             return res.status(400).send('the order cannot be created!')
+
+//         res.send(order);
+//     } catch (error) {
+//         console.error(error);
+//         res.status(500).send('Internal Server Error');
+//     }
+// });
 router.post('/', async (req, res) => {
     try {
-        const orderItemsIds = await Promise.all(req.body.orderItems.map(async (orderItem) => {
-            let newOrderItem = new OrderItem({
+        // Validate request body
+        if (!req.body.orderItems || !Array.isArray(req.body.orderItems) || req.body.orderItems.length === 0) {
+            return res.status(400).send('Order items are required and should be a non-empty array.');
+        }
+
+        // Validate each order item
+        for (const orderItem of req.body.orderItems) {
+            if (!orderItem.product || !orderItem.quantity || isNaN(orderItem.quantity) || orderItem.quantity <= 0) {
+                return res.status(400).send('Each order item should have a valid product ID and a quantity greater than zero.');
+            }
+        }
+
+        // Create an array to store the IDs of created order items
+        const orderItemsIds = [];
+
+        // Create order items and update product stock
+        for (const orderItem of req.body.orderItems) {
+            const newOrderItem = new OrderItem({
                 quantity: orderItem.quantity,
                 product: orderItem.product
             });
 
-            newOrderItem = await newOrderItem.save();
+            const savedOrderItem = await newOrderItem.save();
+            orderItemsIds.push(savedOrderItem._id);
 
-            return newOrderItem._id;
-        }));
+            // Update product countInStock
+            const product = await Product.findById(orderItem.product);
+            if (!product) {
+                throw new Error(`Product not found for ID: ${orderItem.product}`);
+            }
 
-        let order = new Order({
+            product.countInStock -= orderItem.quantity;
+            await product.save();
+        }
+
+        // Create the order
+        const order = new Order({
             orderItems: orderItemsIds,
             shippingAddress1: req.body.shippingAddress1,
             shippingAddress2: req.body.shippingAddress2,
@@ -56,18 +121,22 @@ router.post('/', async (req, res) => {
             user: req.body.user,
         });
 
-        order = await order.save();
+        const savedOrder = await order.save();
 
-        if (!order)
-            return res.status(400).send('the order cannot be created!')
+        if (!savedOrder) {
+            return res.status(400).send('The order could not be created.');
+        }
 
-        res.send(order);
+        res.status(201).send(savedOrder);
     } catch (error) {
-        console.error(error);
-        res.status(500).send('Internal Server Error');
+        console.error('Error creating order:', error);
+        if (error.message.startsWith('Product not found')) {
+            res.status(404).send(error.message);
+        } else {
+            res.status(500).send('Internal Server Error');
+        }
     }
 });
-
 
 router.put('/:id', async (req, res) => {
     const order = await Order.findByIdAndUpdate(

@@ -1,14 +1,14 @@
 const mongoose = require('mongoose');
 
 const reviewSchema = mongoose.Schema({
-    product: {
-        type: mongoose.Schema.Types.ObjectId,
-        ref: 'Product',
-        required: true
-    },
     user: {
         type: mongoose.Schema.Types.ObjectId,
         ref: 'User',
+        required: true
+    },
+    orderItem: {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: 'OrderItem',
         required: true
     },
     rating: {
@@ -19,18 +19,10 @@ const reviewSchema = mongoose.Schema({
         type: String,
         required: true
     },
-    datePosted: {
-        type: Date,
-        default: Date.now
+    description: {
+        type: String,
+        required: true
     }
-});
-
-reviewSchema.virtual('id').get(function () {
-    return this._id.toHexString();
-});
-
-reviewSchema.set('toJSON', {
-    virtuals: true
 });
 
 exports.Review = mongoose.model('Review', reviewSchema);

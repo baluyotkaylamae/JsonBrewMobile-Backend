@@ -1,65 +1,43 @@
 const express = require('express');
 const router = express.Router();
+const { Review } = require('../models/review');
 const { Product } = require('../models/product');
 const { Order } = require('../models/order');
-const { Review } = require('../models/review');
 
-// Fetch the product that the user has confirmed to receive
-router.get('/:productId/order/:orderId', async (req, res) => {
+// POST route to create a new review
+router.post('/', async (req, res) => {
     try {
-        const product = await Product.findById(req.params.productId);
-        const order = await Order.findById(req.params.orderId);
-        
-        // Check if the order exists and is confirmed
-        if (!order || order.status !== 'Delivered') {
-            return res.status(404).json({ success: false, message: 'Order not found or not delivered' });
+        // Check if the user has already reviewed the product
+        const existingReview = await Review.findOne({ user: req.body.userId, product: req.body.productId });
+        if (existingReview) {
+            return res.status(400).send('You have already reviewed this product.');
         }
 
-        // Check if the product belongs to the order
-        const orderItem = order.orderItems.find(item => item.product.toString() === req.params.productId);
-        if (!orderItem) {
-            return res.status(404).json({ success: false, message: 'Product not found in the order' });
+        // Retrieve the order details
+        const order = await Order.findOne({ user: req.body.userId, status: 'Delivered', 'orderItems.product': req.body.productId });
+        if (!order) {
+            return res.status(400).send('You cannot review this product. Make sure you have received it.');
         }
 
-        // If everything is fine, return the product
-        res.json({ success: true, product });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, error: 'Internal Server Error' });
-    }
-});
-
-// Create a review
-router.post('/:productId/review/:orderId', async (req, res) => {
-    try {
-        const product = await Product.findById(req.params.productId);
-        const order = await Order.findById(req.params.orderId);
-        
-        // Check if the order exists and is confirmed
-        if (!order || order.status !== 'Delivered') {
-            return res.status(404).json({ success: false, message: 'Order not found or not delivered' });
-        }
-
-        // Check if the product belongs to the order
-        const orderItem = order.orderItems.find(item => item.product.toString() === req.params.productId);
-        if (!orderItem) {
-            return res.status(404).json({ success: false, message: 'Product not found in the order' });
-        }
-
-        // Create the review
+        // Create a new review
         const review = new Review({
-            product: req.params.productId,
-            user: order.user,
+            user: req.body.userId,
+            product: req.body.productId,
             rating: req.body.rating,
-            comment: req.body.comment
+            comment: req.body.comment,
+            description: req.body.description
         });
+
+        // Save the review
         await review.save();
 
-        res.json({ success: true, review });
+        res.send(review);
     } catch (error) {
         console.error(error);
-        res.status(500).json({ success: false, error: 'Internal Server Error' });
+        return res.status(500).send('Error creating review');
     }
 });
+
+// Additional routes for fetching, updating, and deleting reviews can be added here
 
 module.exports = router;

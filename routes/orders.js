@@ -70,6 +70,83 @@ router.get(`/:id`, async (req, res) => {
 //         res.status(500).send('Internal Server Error');
 //     }
 // });
+
+
+
+
+
+
+// router.post('/', async (req, res) => {
+//     try {
+//         // Validate request body
+//         if (!req.body.orderItems || !Array.isArray(req.body.orderItems) || req.body.orderItems.length === 0) {
+//             return res.status(400).send('Order items are required and should be a non-empty array.');
+//         }
+
+//         // Validate each order item
+//         for (const orderItem of req.body.orderItems) {
+//             if (!orderItem.product || !orderItem.quantity || isNaN(orderItem.quantity) || orderItem.quantity <= 0) {
+//                 return res.status(400).send('Each order item should have a valid product ID and a quantity greater than zero.');
+//             }
+//         }
+
+//         // Create an array to store the IDs of created order items
+//         const orderItemsIds = [];
+
+//         // Create order items and update product stock
+//         for (const orderItem of req.body.orderItems) {
+//             const newOrderItem = new OrderItem({
+//                 quantity: orderItem.quantity,
+//                 product: orderItem.product
+//             });
+
+//             const savedOrderItem = await newOrderItem.save();
+//             orderItemsIds.push(savedOrderItem._id);
+
+//             // Update product countInStock
+//             const product = await Product.findById(orderItem.product);
+//             if (!product) {
+//                 throw new Error(`Product not found for ID: ${orderItem.product}`);
+//             }
+
+//             product.countInStock -= orderItem.quantity;
+//             await product.save();
+//         }
+
+//         // Create the order
+//         const order = new Order({
+//             orderItems: orderItemsIds,
+//             shippingAddress1: req.body.shippingAddress1,
+//             shippingAddress2: req.body.shippingAddress2,
+//             city: req.body.city,
+//             zip: req.body.zip,
+//             country: req.body.country,
+//             phone: req.body.phone,
+//             status: req.body.status,
+//             totalPrice: req.body.totalPrice, 
+//             user: req.body.user,
+//         });
+
+//         const savedOrder = await order.save();
+
+//         if (!savedOrder) {
+//             return res.status(400).send('The order could not be created.');
+//         }
+
+//         res.status(201).send(savedOrder);
+//     } catch (error) {
+//         console.error('Error creating order:', error);
+//         if (error.message.startsWith('Product not found')) {
+//             res.status(404).send(error.message);
+//         } else {
+//             res.status(500).send('Internal Server Error');
+//         }
+//     }
+// });
+
+
+
+
 router.post('/', async (req, res) => {
     try {
         // Validate request body
@@ -82,6 +159,11 @@ router.post('/', async (req, res) => {
             if (!orderItem.product || !orderItem.quantity || isNaN(orderItem.quantity) || orderItem.quantity <= 0) {
                 return res.status(400).send('Each order item should have a valid product ID and a quantity greater than zero.');
             }
+        }
+
+        // Check if the order status is Delivered (status 1)
+        if (req.body.status !== '1') {
+            return res.status(400).send('Only orders with a status of Delivered can have a review.');
         }
 
         // Create an array to store the IDs of created order items
@@ -119,6 +201,9 @@ router.post('/', async (req, res) => {
             status: req.body.status,
             totalPrice: req.body.totalPrice, 
             user: req.body.user,
+            // Add review data
+            rating: req.body.rating,
+            comment: req.body.comment
         });
 
         const savedOrder = await order.save();
@@ -137,6 +222,10 @@ router.post('/', async (req, res) => {
         }
     }
 });
+
+
+
+
 
 router.put('/:id', async (req, res) => {
     const order = await Order.findByIdAndUpdate(
@@ -204,7 +293,5 @@ router.get(`/get/userorders/:userid`, async (req, res) => {
     }
     res.send(userOrderList);
 })
-
-
 
 module.exports = router;

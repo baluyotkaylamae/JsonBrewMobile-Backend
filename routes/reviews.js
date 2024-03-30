@@ -1,43 +1,36 @@
+// reviews.js
 const express = require('express');
 const router = express.Router();
-const { Review } = require('../models/review');
-const { Product } = require('../models/product');
-const { Order } = require('../models/order');
+const { Review } = require('../models/review'); // Import the Review model
 
-// POST route to create a new review
 router.post('/', async (req, res) => {
     try {
-        // Check if the user has already reviewed the product
-        const existingReview = await Review.findOne({ user: req.body.userId, product: req.body.productId });
-        if (existingReview) {
-            return res.status(400).send('You have already reviewed this product.');
+        const { orderId, rating, review } = req.body; // Remove orderItemId from here
+
+        if (!orderId) { // Check if orderId is provided
+            return res.status(400).json({ success: false, message: 'Order ID is required.' });
         }
 
-        // Retrieve the order details
-        const order = await Order.findOne({ user: req.body.userId, status: 'Delivered', 'orderItems.product': req.body.productId });
-        if (!order) {
-            return res.status(400).send('You cannot review this product. Make sure you have received it.');
+        // Validate the rating
+        if (rating < 1 || rating > 5) {
+            return res.status(400).json({ success: false, message: 'Invalid rating. Rating must be between 1 and 5.' });
         }
 
         // Create a new review
-        const review = new Review({
-            user: req.body.userId,
-            product: req.body.productId,
-            rating: req.body.rating,
-            comment: req.body.comment,
-            description: req.body.description
+        const newReview = new Review({
+            order: orderId,
+            rating: rating,
+            comment: review
         });
 
         // Save the review
-        await review.save();
+        const savedReview = await newReview.save();
 
-        res.send(review);
+        res.status(201).json({ success: true, review: savedReview });
     } catch (error) {
-        console.error(error);
-        return res.status(500).send('Error creating review');
+        console.error('Error creating review:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
-
-// Additional routes for fetching, updating, and deleting reviews can be added here
 
 module.exports = router;

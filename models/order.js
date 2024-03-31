@@ -44,7 +44,8 @@ const orderSchema = mongoose.Schema({
     dateOrdered: {
         type: Date,
         default: Date.now,
-    },
+    }
+
 })
 
 orderSchema.virtual('id').get(function () {

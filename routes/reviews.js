@@ -1,64 +1,35 @@
+// reviews.js
 const express = require('express');
 const router = express.Router();
-const { Product } = require('../models/product');
-const { Order } = require('../models/order');
-const { Review } = require('../models/review');
+const { Review } = require('../models/review'); // Import the Review model
 
-// Fetch the product that the user has confirmed to receive
-router.get('/:productId/order/:orderId', async (req, res) => {
+router.post('/', async (req, res) => {
     try {
-        const product = await Product.findById(req.params.productId);
-        const order = await Order.findById(req.params.orderId);
-        
-        // Check if the order exists and is confirmed
-        if (!order || order.status !== 'Delivered') {
-            return res.status(404).json({ success: false, message: 'Order not found or not delivered' });
+        const { orderId, rating, review } = req.body; // Remove orderItemId from here
+
+        if (!orderId) { // Check if orderId is provided
+            return res.status(400).json({ success: false, message: 'Order ID is required.' });
         }
 
-        // Check if the product belongs to the order
-        const orderItem = order.orderItems.find(item => item.product.toString() === req.params.productId);
-        if (!orderItem) {
-            return res.status(404).json({ success: false, message: 'Product not found in the order' });
+        // Validate the rating
+        if (rating < 1 || rating > 5) {
+            return res.status(400).json({ success: false, message: 'Invalid rating. Rating must be between 1 and 5.' });
         }
 
-        // If everything is fine, return the product
-        res.json({ success: true, product });
-    } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, error: 'Internal Server Error' });
-    }
-});
-
-// Create a review
-router.post('/:productId/review/:orderId', async (req, res) => {
-    try {
-        const product = await Product.findById(req.params.productId);
-        const order = await Order.findById(req.params.orderId);
-        
-        // Check if the order exists and is confirmed
-        if (!order || order.status !== 'Delivered') {
-            return res.status(404).json({ success: false, message: 'Order not found or not delivered' });
-        }
-
-        // Check if the product belongs to the order
-        const orderItem = order.orderItems.find(item => item.product.toString() === req.params.productId);
-        if (!orderItem) {
-            return res.status(404).json({ success: false, message: 'Product not found in the order' });
-        }
-
-        // Create the review
-        const review = new Review({
-            product: req.params.productId,
-            user: order.user,
-            rating: req.body.rating,
-            comment: req.body.comment
+        // Create a new review
+        const newReview = new Review({
+            order: orderId,
+            rating: rating,
+            comment: review
         });
-        await review.save();
 
-        res.json({ success: true, review });
+        // Save the review
+        const savedReview = await newReview.save();
+
+        res.status(201).json({ success: true, review: savedReview });
     } catch (error) {
-        console.error(error);
-        res.status(500).json({ success: false, error: 'Internal Server Error' });
+        console.error('Error creating review:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
 

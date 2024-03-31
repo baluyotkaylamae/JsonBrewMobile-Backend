@@ -33,4 +33,59 @@ router.post('/', async (req, res) => {
     }
 });
 
+
+// Update/Edit Review
+router.put('/:id', async (req, res) => {
+    try {
+        const { rating, comment } = req.body;
+        const reviewId = req.params.id;
+
+        // Find the review by ID
+        const review = await Review.findById(reviewId);
+
+        // Check if the review exists
+        if (!review) {
+            return res.status(404).json({ success: false, message: 'Review not found.' });
+        }
+
+        // Update the review properties
+        // If rating or comment is not provided in the request body, use the current values
+        review.rating = rating || review.rating;
+        review.comment = comment || review.comment;
+
+        // Save the updated review
+        const updatedReview = await review.save();
+
+        res.status(200).json({ success: true, review: updatedReview });
+    } catch (error) {
+        console.error('Error updating review:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+
+router.get('/', async (req, res) => {
+    try {
+        const orderId = req.query.orderId; // Get order ID from query parameters
+        if (!orderId) {
+            return res.status(400).json({ success: false, message: 'Order ID is required.' });
+        }
+
+        // Find reviews with the provided order ID
+        const reviews = await Review.find({ order: orderId });
+
+        // Check if reviews exist for the order ID
+        if (reviews.length === 0) {
+            return res.status(404).json({ success: false, message: 'No reviews found for the provided order ID.' });
+        }
+
+        res.status(200).json({ success: true, reviews });
+    } catch (error) {
+        console.error('Error fetching reviews:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+
+
 module.exports = router;

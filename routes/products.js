@@ -138,17 +138,21 @@ router.put('/:id', uploadOptions.single('image'), async (req, res) => {
     res.send(updatedProduct);
 });
 
-router.delete('/:id', (req, res)=>{
-    Product.findByIdAndRemove(req.params.id).then(product =>{
-        if(product) {
-            return res.status(200).json({success: true, message: 'the product is deleted!'})
-        } else {
-            return res.status(404).json({success: false , message: "product not found!"})
-        }
-    }).catch(err=>{
-       return res.status(500).json({success: false, error: err}) 
-    })
-})
+router.delete('/:id', (req, res) => {
+    Product.findByIdAndDelete(req.params.id)
+        .then(product => {
+            if (product) {
+                return res.status(200).json({ success: true, message: 'Product deleted successfully.' });
+            } else {
+                return res.status(404).json({ success: false, message: 'Product not found.' });
+            }
+        })
+        .catch(err => {
+            console.error(err);
+            return res.status(500).json({ success: false, error: 'Internal server error.' });
+        });
+});
+
 
 router.get(`/get/count`, async (req, res) =>{
     const productCount = await Product.countDocuments((count) => count)

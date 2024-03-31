@@ -3,9 +3,45 @@ const express = require('express');
 const router = express.Router();
 const { Review } = require('../models/review'); // Import the Review model
 
+// router.post('/', async (req, res) => {
+//     try {
+//         const { orderId, rating, review } = req.body; // Remove orderItemId from here
+
+//         if (!orderId) { // Check if orderId is provided
+//             return res.status(400).json({ success: false, message: 'Order ID is required.' });
+//         }
+
+//         // Validate the rating
+//         if (rating < 1 || rating > 5) {
+//             return res.status(400).json({ success: false, message: 'Invalid rating. Rating must be between 1 and 5.' });
+//         }
+
+//         // Create a new review
+//         const newReview = new Review({
+//             order: orderId,
+//             rating: rating,
+//             comment: review
+//         });
+
+//         // Save the review
+//         const savedReview = await newReview.save();
+
+//         res.status(201).json({ success: true, review: savedReview });
+//     } catch (error) {
+//         console.error('Error creating review:', error);
+//         res.status(500).json({ success: false, message: 'Internal Server Error' });
+//     }
+// });
+
+
+
+
+
+// reviews.js
+
 router.post('/', async (req, res) => {
     try {
-        const { orderId, rating, review } = req.body; // Remove orderItemId from here
+        const { orderId, rating, comment } = req.body; // Change `review` to `comment`
 
         if (!orderId) { // Check if orderId is provided
             return res.status(400).json({ success: false, message: 'Order ID is required.' });
@@ -20,7 +56,7 @@ router.post('/', async (req, res) => {
         const newReview = new Review({
             order: orderId,
             rating: rating,
-            comment: review
+            comment: comment // Use `comment` instead of `review`
         });
 
         // Save the review
@@ -32,6 +68,9 @@ router.post('/', async (req, res) => {
         res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
+
+
+
 
 
 // Update/Edit Review
@@ -86,6 +125,29 @@ router.get('/', async (req, res) => {
     }
 });
 
+
+// Delete Review
+router.delete('/:orderId', async (req, res) => {
+    try {
+        const orderId = req.params.orderId;
+
+        // Find the review by order ID
+        const review = await Review.findOne({ order: orderId });
+
+        // Check if the review exists
+        if (!review) {
+            return res.status(404).json({ success: false, message: 'Review not found for the provided order ID.' });
+        }
+
+        // Delete the review
+        await Review.deleteOne({ order: orderId });
+
+        res.status(200).json({ success: true, message: 'Review deleted successfully.' });
+    } catch (error) {
+        console.error('Error deleting review:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
 
 
 module.exports = router;

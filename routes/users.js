@@ -184,4 +184,45 @@ router.get(`/get/count`, async (req, res) => {
         userCount: userCount
     });
 })
+
+router.post('/googlelogin', async (req, res) => {
+    const { response } = req.body;
+    console.log(response);
+
+    try {
+        let user = await User.findOne({ googleId: response.id });
+
+        if (!user) {
+            user = await User.create({
+                name: response.name,
+                email: response.email,
+                password: '', 
+                avatar: {
+                    public_id: 'avatars/avatar-default',
+                    url: response.picture,
+                },
+                googleId: response.id
+            });
+        }
+
+        sendToken(user, 200, res);
+    } catch (error) {
+        console.error('Google login error:', error);
+        res.status(400).send('Google login failed');
+    }
+});
+
+// Helper function to send JWT token
+function sendToken(user, statusCode, res) {
+    const secret = process.env.secret;
+    const token = jwt.sign(
+        {
+            userId: user.id,
+            isAdmin: user.isAdmin
+        },
+        secret,
+        { expiresIn: '1d' }
+    );
+    res.status(statusCode).send({ user: user.email, token });
+}
 module.exports = router;

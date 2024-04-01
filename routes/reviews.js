@@ -1,7 +1,8 @@
 // reviews.js
 const express = require('express');
 const router = express.Router();
-const { Review } = require('../models/review'); // Import the Review model
+const { Review } = require('../models/review'); 
+const { Order } = require('../models/order');
 
 // router.post('/', async (req, res) => {
 //     try {
@@ -145,6 +146,99 @@ router.delete('/:orderId', async (req, res) => {
         res.status(200).json({ success: true, message: 'Review deleted successfully.' });
     } catch (error) {
         console.error('Error deleting review:', error);
+        res.status(500).json({ success: false, message: 'Internal Server Error' });
+    }
+});
+
+
+
+
+// Fetch all reviews
+// router.get('/all', async (req, res) => {
+//     try {
+//         // Find all reviews
+//         const reviews = await Review.find();
+
+//         res.status(200).json({ success: true, reviews });
+//     } catch (error) {
+//         console.error('Error fetching reviews:', error);
+//         res.status(500).json({ success: false, message: 'Internal Server Error' });
+//     }
+// });
+
+
+
+
+// router.get('/all', async (req, res) => {
+//     try {
+//         // Find all reviews
+//         const reviews = await Review.find();
+
+//         // Extract order IDs from reviews
+//         const orderIds = reviews.map(review => review.order.id);
+
+//         // Fetch orders with user information
+//         const orders = await Order.find({ _id: { $in: orderIds } }).populate({
+//             path: 'user',
+//             select: 'name email' // Select only 'name' and 'email' fields of the user
+//         });
+
+//         // Map user information to reviews
+//         const reviewsWithUsers = reviews.map(review => {
+//             const order = orders.find(order => order._id.equals(review.order));
+//             const user = order ? order.user : null;
+//             return { ...review.toObject(), user }; // Add user information to review object
+//         });
+
+//         res.status(200).json({ success: true, reviews: reviewsWithUsers });
+//     } catch (error) {
+//         console.error('Error fetching reviews:', error);
+//         res.status(500).json({ success: false, message: 'Internal Server Error' });
+//     }
+// });
+
+
+// router.get('/all', async (req, res) => {
+//     try {
+//         const reviews = await Review.find().populate({
+//             path: 'order',
+//             populate: { path: 'user', select: 'name' } // Populate user's name
+//         });
+
+//         const reviewsWithUsers = reviews.map(review => ({
+//             _id: review._id,
+//             rating: review.rating,
+//             comment: review.comment,
+//             userName: review.order.user.name // Extract user's name from order
+//         }));
+
+//         res.status(200).json({ success: true, reviews: reviewsWithUsers });
+//     } catch (error) {
+//         console.error('Error fetching reviews:', error);
+//         res.status(500).json({ success: false, message: 'Internal Server Error' });
+//     }
+// });
+
+
+router.get('/all', async (req, res) => {
+    try {
+        const reviews = await Review.find().populate({
+            path: 'order',
+            populate: { path: 'user', select: 'name' } // Populate user's name and profile picture
+        });
+
+        const reviewsWithUsers = reviews.map(review => ({
+            _id: review._id,
+            rating: review.rating,
+            comment: review.comment,
+            userName: review.order.user.name,
+            date: review.updatedAt,
+            order: review.order
+        }));
+
+        res.status(200).json({ success: true, reviews: reviewsWithUsers });
+    } catch (error) {
+        console.error('Error fetching reviews:', error);
         res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });

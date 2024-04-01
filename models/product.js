@@ -55,6 +55,7 @@ const productSchema = mongoose.Schema({
         type: Date,
         default: Date.now,
     },
+
 })
 
 productSchema.virtual('id').get(function () {

@@ -3,6 +3,8 @@ const express = require('express');
 const router = express.Router();
 const { Review } = require('../models/review'); 
 const { Order } = require('../models/order');
+const { Product } = require('../models/product'); 
+const { OrderItem } = require('../models/order-item');
 
 // router.post('/', async (req, res) => {
 //     try {
@@ -220,28 +222,56 @@ router.delete('/:orderId', async (req, res) => {
 // });
 
 
+// router.get('/all', async (req, res) => {
+//     try {
+//         const reviews = await Review.find().populate({
+//             path: 'order',
+//             populate: { path: 'user', select: 'name' } // Populate user's name and profile picture
+//         });
+
+//         const reviewsWithUsers = reviews.map(review => ({
+//             _id: review._id,
+//             rating: review.rating,
+//             comment: review.comment,
+//             userName: review.order.user.name,
+//             date: review.updatedAt,
+//             order: review.order
+//         }));
+
+//         res.status(200).json({ success: true, reviews: reviewsWithUsers });
+//     } catch (error) {
+//         console.error('Error fetching reviews:', error);
+//         res.status(500).json({ success: false, message: 'Internal Server Error' });
+//     }
+// });
+
 router.get('/all', async (req, res) => {
     try {
         const reviews = await Review.find().populate({
             path: 'order',
-            populate: { path: 'user', select: 'name' } // Populate user's name and profile picture
+            populate: [
+                { path: 'orderItems', populate: { path: 'product', select: 'name' } },
+                { path: 'user', select: 'name' }
+            ]
         });
 
-        const reviewsWithUsers = reviews.map(review => ({
-            _id: review._id,
-            rating: review.rating,
-            comment: review.comment,
-            userName: review.order.user.name,
-            date: review.updatedAt,
-            order: review.order
-        }));
+        const reviewsWithProducts = reviews.map(review => {
+            const productNames = review.order.orderItems.map(orderItem => orderItem.product.name);
+            return {
+                _id: review._id,
+                rating: review.rating,
+                comment: review.comment,
+                userName: review.order.user.name,
+                date: review.updatedAt,
+                products: productNames
+            };
+        });
 
-        res.status(200).json({ success: true, reviews: reviewsWithUsers });
+        res.status(200).json({ success: true, reviews: reviewsWithProducts });
     } catch (error) {
         console.error('Error fetching reviews:', error);
         res.status(500).json({ success: false, message: 'Internal Server Error' });
     }
 });
-
 
 module.exports = router;

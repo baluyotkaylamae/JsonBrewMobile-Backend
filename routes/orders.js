@@ -215,32 +215,37 @@ router.post('/', async (req, res) => {
             return res.status(400).send('The order could not be created.');
         }
 
-        //user:cokegorr - logged in host acc
-        //admin:gorrqrosto
+        // Sending email to admin
         const adminEmailContent = `
-        <div style="text-align: center; font-family: Arial, sans-serif; color: #333;">
-            <h1 style="color: #664229;">New Order Placed</h1>
-            <p>Order details:</p>
-            <table style="width: 100%; border-collapse: collapse;">
-                <thead>
-                    <tr>
-                        <th style="border: 1px solid #ddd; padding: 8px;">Product</th>
-                        <th style="border: 1px solid #ddd; padding: 8px;">Price</th>
-                        <th style="border: 1px solid #ddd; padding: 8px;">Quantity</th>
-                    </tr>
-                </thead>
-                <tbody>
-                    ${req.body.orderItems.map(orderItem => `
+            <div style="text-align: center; font-family: Arial, sans-serif; color: #333;">
+                <h1 style="color: #664229;">New Order Placed</h1>
+                <p>Order Details:</p>
+                <p>Shipping Address: ${savedOrder.shippingAddress1}, ${savedOrder.shippingAddress2 || ''}, ${savedOrder.city}, ${savedOrder.country}</p>
+              <p>Date Ordered: ${savedOrder.dateOrdered}</p>
+                <table style="width: 100%; border-collapse: collapse;">
+                    <thead>
                         <tr>
-                            <td style="border: 1px solid #ddd; padding: 8px;">${orderItem.product}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px;">${orderItem.totalPrice}</td>
-                            <td style="border: 1px solid #ddd; padding: 8px;">${orderItem.quantity}</td>
+                            <th style="border: 1px solid #ddd; padding: 8px;">Purchased Product</th>
+                            <th style="border: 1px solid #ddd; padding: 8px;">Price</th>
+                            <th style="border: 1px solid #ddd; padding: 8px;">Quantity</th>
                         </tr>
-                    `).join('')}
+                    </thead>
+                    <tbody>
+                    ${await Promise.all(req.body.orderItems.map(async (orderItem) => {
+            const product = await Product.findById(orderItem.product);
+            return `
+                            <tr>
+                                <td style="border: 1px solid #ddd; padding: 8px;">${product.name}</td>
+                                <td style="border: 1px solid #ddd; padding: 8px;">${product.price}</td>
+                                <td style="border: 1px solid #ddd; padding: 8px;">${orderItem.quantity}</td>
+                            </tr>
+                        `;
+        })).then(rows => rows.join(''))}
                 </tbody>
             </table>
+            <p>Customer purchase on JsonBrews.</p>
         </div>
-    `;    
+    `;
         adminTransporter.sendMail({
             from: 'cokegorr@gmail.com',
             to: 'admin@gmail.com',
@@ -253,43 +258,44 @@ router.post('/', async (req, res) => {
                 console.log('Email sent to admin:', info);
             }
         });
-        res.status(201).send('Order placed successfully');
 
-    } catch (error) {
-        console.error('Error creating order:', error);
-        if (error.message.startsWith('Product not found')) {
-            res.status(404).send(error.message);
-        } else {
-            res.status(500).send('Internal Server Error');
-        }
-    }
-});
-
-//confirmed
-router.put('/:id/confirm', async (req, res) => {
-    try {
-        const order = await Order.findByIdAndUpdate(
-            req.params.id,
-            { status: 'Confirmed' },
-            { new: true }
-        ).populate('user').populate('orderItems.product');
-
-        if (!order) {
-            return res.status(404).send('Order not found');
-        }
-    
+        // Sending email to user
         const userEmailContent = `
-            <div style="text-align: center; font-family: Arial, sans-serif; color: #333;">
-                <h1 style="color: #664229;">Order Confirmed</h1>
-                <p>Your order with ID ${order._id} has been confirmed.</p>
-                <p>Thank you for ordering!</p>
-            </div>
-        `;
+    <div style="text-align: center; font-family: Arial, sans-serif; color: #333;">
+        <h1 style="color: #664229;">Thank you for your order!</h1>
+        <p>Your order has been placed successfully.</p>
+        <p>Order ID: ${savedOrder._id}</p>
+        <p>Order Total: ₱${savedOrder.totalPrice}</p>
+        <p>Order Details:</p>
+        <table style="width: 100%; border-collapse: collapse;">
+            <thead>
+                <tr>
+                    <th style="border: 1px solid #ddd; padding: 8px;">Purchased Product</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">Price</th>
+                    <th style="border: 1px solid #ddd; padding: 8px;">Quantity</th>
+                </tr>
+            </thead>
+            <tbody>
+            ${await Promise.all(savedOrder.orderItems.map(async (orderItemId) => {
+            const orderItem = await OrderItem.findById(orderItemId).populate('product');
+            return `
+                    <tr>
+                        <td style="border: 1px solid #ddd; padding: 8px;">${orderItem.product.name}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">₱${orderItem.product.price}</td>
+                        <td style="border: 1px solid #ddd; padding: 8px;">${orderItem.quantity}</td>
+                    </tr>
+                `;
+        })).then(rows => rows.join(''))}
+            </tbody>
+             <p>Please keep updated on the status of your order.</p>
+        </table>
+    </div>
+`;
 
         userTransporter.sendMail({
-            from: 'gorrqrosto@gmail.com',
-            to: 'gorrqrosto@gmail.com',
-            subject: 'Order Confirmation',
+            from: 'cokegorr@gmail.com',
+            to: 'qrostogorr@gmail.com',
+            subject: 'Placed Order',
             html: userEmailContent
         }, (err, info) => {
             if (err) {
@@ -299,13 +305,16 @@ router.put('/:id/confirm', async (req, res) => {
             }
         });
 
-        res.status(200).send('Order confirmed successfully');
+        res.status(201).send('Order placed successfully');
     } catch (error) {
-        console.error('Error confirming order:', error);
-        res.status(500).send('Internal Server Error');
+        console.error('Error creating order:', error);
+        if (error.message.startsWith('Product not found')) {
+            res.status(404).send(error.message);
+        } else {
+            res.status(500).send('Internal Server Error');
+        }
     }
 });
-
 
 
 router.put('/:id', async (req, res) => {
